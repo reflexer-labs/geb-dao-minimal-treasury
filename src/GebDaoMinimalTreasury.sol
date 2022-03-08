@@ -17,15 +17,15 @@ contract GebDaoMinimalTreasury is GebAuth {
     // --- State vars ---
     // Token kept in the treasury
     TokenLike immutable public token;
-    // delegate, can spend allowance every epoch
+    // Delegate, can spend allowance every epoch
     address public treasuryDelegate;
-    // duration of each epoch (seconds)
+    // Duration of each epoch (seconds)
     uint256 public epochLength;
-    // amount that can be spent each epoch
+    // Amount that can be spent each epoch
     uint256 public delegateAllowance;
-    // amount left to spend in current epock
+    // Amount left to spend in current epock
     uint256 public delegateLeftoverToSpend;
-    // current epoch start (Unix timestamp)
+    // Current epoch start (Unix timestamp)
     uint256 public epochStart;
 
     // --- Constructor ---
@@ -68,7 +68,7 @@ contract GebDaoMinimalTreasury is GebAuth {
         assembly{ z := or(x, y)}
     }
 
-    // --- Admin functions ---
+    // --- Admin Functions ---
     /**
     * @notice Modify an int256 parameter
     * @param parameter The name of the parameter to change
@@ -100,10 +100,8 @@ contract GebDaoMinimalTreasury is GebAuth {
     }
 
     // --- Delegate functions ---
-
     /**
-    * @notice Updates epoch info.
-    *         Balance not used in previous epochs should not be available
+    * @notice Updates epoch info. Unused balance in previous epochs should not be available
     **/
     modifier updateEpoch() {
         uint256 epochFinish = add(epochStart, epochLength);
