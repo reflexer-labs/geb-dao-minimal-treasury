@@ -51,9 +51,16 @@ contract GebDaoMinimalTreasury is GebAuth {
         epochStart = now;
         delegateLeftoverToSpend = _delegateAllowance;
     }
+
     // --- SafeMath ---
-    function subtract(uint256 x, uint256 y) internal pure returns (uint256 z) {
-        require((z = x - y) <= x, "MultiAccountingEngine/sub-underflow");
+    function add(uint x, uint y) internal pure returns (uint z) {
+        require((z = x + y) >= x, "GebDAOMinimalTreasury/add-overflow");
+    }
+    function sub(uint x, uint y) internal pure returns (uint z) {
+        require((z = x - y) <= x, "GebDAOMinimalTreasury/sub-underflow");
+    }
+    function mul(uint x, uint y) internal pure returns (uint z) {
+        require(y == 0 || (z = x * y) / y == x, "GebDAOMinimalTreasury/mul-overflow");
     }
 
     // --- Boolean Logic ---
@@ -99,12 +106,12 @@ contract GebDaoMinimalTreasury is GebAuth {
     *         Balance not used in previous epochs should not be available
     **/
     modifier updateEpoch() {
-        uint256 epochFinish = epochStart + epochLength;
+        uint256 epochFinish = add(epochStart, epochLength);
         if (now > epochFinish) {
             delegateLeftoverToSpend = delegateAllowance;
             if (now - epochFinish > epochLength) {
-                uint256 epochsElapsed = (now - epochFinish) / epochLength;
-                epochStart = (epochsElapsed * epochLength) + epochFinish;
+                uint256 epochsElapsed = sub(now, epochFinish) / epochLength;
+                epochStart = add(mul(epochsElapsed, epochLength), epochFinish);
             } else
                 epochStart = epochFinish;
         }
@@ -116,11 +123,18 @@ contract GebDaoMinimalTreasury is GebAuth {
      * @param dst The address to transfer tokens to
      * @param amount The amount of tokens to transfer
      */
-    function transferERC20(address dst, uint256 amount) external updateEpoch {
-        require(msg.sender == treasuryDelegate || authorizedAccounts[msg.sender] == 1, "GebDAOMinimalTreasury/unauthorized");
-        if (msg.sender == treasuryDelegate) {
-            delegateLeftoverToSpend = subtract(delegateLeftoverToSpend, amount); // reverts if lower allowance
-        }
+    function delegateTransferERC20(address dst, uint256 amount) external updateEpoch {
+        require(msg.sender == treasuryDelegate, "GebDAOMinimalTreasury/unauthorized");
+        delegateLeftoverToSpend = sub(delegateLeftoverToSpend, amount); // reverts if lower allowance
         token.transfer(dst, amount);
+    }
+
+    /**
+     * @notice Transfer any token from treasury to dst (admin only)
+     * @param dst The address to transfer tokens to
+     * @param amount The amount of tokens to transfer
+     */
+    function transferERC20(address _token, address dst, uint256 amount) external isAuthorized {
+        TokenLike(_token).transfer(dst, amount);
     }
 }

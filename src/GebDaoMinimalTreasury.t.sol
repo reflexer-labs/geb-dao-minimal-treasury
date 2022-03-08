@@ -12,8 +12,8 @@ abstract contract Hevm {
 }
 
 contract Delegate {
-    function transferERC20(GebDaoMinimalTreasury treasury, address dst, uint amount) public {
-        treasury.transferERC20(dst, amount);
+    function delegateTransferERC20(GebDaoMinimalTreasury treasury, address dst, uint amount) public {
+        treasury.delegateTransferERC20(dst, amount);
     }
 }
 
@@ -140,14 +140,19 @@ contract GebDaoMinimalTreasuryTest is DSTest {
 
     function test_transfer_ERC20_admin() external {
         uint transferAmount = allowance * 2;
-        treasury.transferERC20(address(0xfab), transferAmount);
+        treasury.transferERC20(address(token), address(0xfab), transferAmount);
         assertEq(token.balanceOf(address(treasury)), initialTreasuryBalance - transferAmount);
         assertEq(token.balanceOf(address(0xfab)), transferAmount);
     }
 
+    function testFail_transfer_ERC20_admin_unauthed() external removeAuth {
+        uint transferAmount = 2;
+        treasury.transferERC20(address(token), address(0xfab), transferAmount);
+    }
+
     function test_transfer_ERC20_delegate() external {
         uint transferAmount = allowance;
-        delegate.transferERC20(treasury, address(0xfab), transferAmount);
+        delegate.delegateTransferERC20(treasury, address(0xfab), transferAmount);
         assertEq(token.balanceOf(address(treasury)), initialTreasuryBalance - transferAmount);
         assertEq(treasury.delegateLeftoverToSpend(), 0);
         assertEq(token.balanceOf(address(0xfab)), transferAmount);
@@ -155,14 +160,14 @@ contract GebDaoMinimalTreasuryTest is DSTest {
 
     function testFail_transfer_ERC20_delegate_over_allowance() external {
         uint transferAmount = allowance + 1;
-        delegate.transferERC20(treasury, address(0xfab), transferAmount);
+        delegate.delegateTransferERC20(treasury, address(0xfab), transferAmount);
     }
 
     function test_transfer_ERC20_delegate_multiple_epochs() external {
         uint transferAmount = allowance;
         for (uint i; i < 10; i++) {
             hevm.warp(now + epochLength + 1);
-            delegate.transferERC20(treasury, address(0xfab), transferAmount);
+            delegate.delegateTransferERC20(treasury, address(0xfab), transferAmount);
             emit log_named_uint("epochStart", treasury.epochStart());
         }
 
@@ -175,7 +180,7 @@ contract GebDaoMinimalTreasuryTest is DSTest {
         uint transferAmount = allowance;
         for (uint i; i < 10; i++) {
             hevm.warp(now + 1 + epochLength * 3);
-            delegate.transferERC20(treasury, address(0xfab), transferAmount);
+            delegate.delegateTransferERC20(treasury, address(0xfab), transferAmount);
             emit log_named_uint("epochStart", treasury.epochStart());
         }
 
@@ -184,8 +189,7 @@ contract GebDaoMinimalTreasuryTest is DSTest {
         assertEq(token.balanceOf(address(0xfab)), transferAmount * 10);
     }
 
-    function testFail_transfer_ERC20_unauthed() external removeAuth {
-        uint transferAmount = 1;
-        treasury.transferERC20(address(0xfab), transferAmount);
+    function testFail_transfer_ERC20__delegate_unauthed() external removeAuth {
+        treasury.delegateTransferERC20(address(0xfab), 1);
     }
 }
