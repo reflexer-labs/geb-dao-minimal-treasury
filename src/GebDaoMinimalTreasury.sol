@@ -24,7 +24,7 @@ contract GebDaoMinimalTreasury is GebAuth {
     // Amount that can be spent each epoch
     uint256 public delegateAllowance;
     // Amount left to spend in current epock
-    uint256 public delegateLeftoverToSpend;
+    uint256 internal delegateLeftoverToSpend_;
     // Current epoch start (Unix timestamp)
     uint256 public epochStart;
 
@@ -49,7 +49,7 @@ contract GebDaoMinimalTreasury is GebAuth {
         epochLength = _epochLength;
         delegateAllowance = _delegateAllowance;
         epochStart = now;
-        delegateLeftoverToSpend = _delegateAllowance;
+        delegateLeftoverToSpend_ = _delegateAllowance;
     }
 
     // --- SafeMath ---
@@ -81,8 +81,8 @@ contract GebDaoMinimalTreasury is GebAuth {
         }
         else if (parameter == "delegateAllowance") {
           delegateAllowance = val;
-          if (val < delegateLeftoverToSpend)
-            delegateLeftoverToSpend = val;
+          if (val < delegateLeftoverToSpend_)
+            delegateLeftoverToSpend_ = val;
         }
         else revert("GebDAOMinimalTreasury/modify-unrecognized-param");
     }
@@ -106,7 +106,7 @@ contract GebDaoMinimalTreasury is GebAuth {
     modifier updateEpoch() {
         uint256 epochFinish = add(epochStart, epochLength);
         if (now > epochFinish) {
-            delegateLeftoverToSpend = delegateAllowance;
+            delegateLeftoverToSpend_ = delegateAllowance;
             if (now - epochFinish > epochLength) {
                 uint256 epochsElapsed = sub(now, epochFinish) / epochLength;
                 epochStart = add(mul(epochsElapsed, epochLength), epochFinish);
@@ -123,7 +123,7 @@ contract GebDaoMinimalTreasury is GebAuth {
      */
     function delegateTransferERC20(address dst, uint256 amount) external updateEpoch {
         require(msg.sender == treasuryDelegate, "GebDAOMinimalTreasury/unauthorized");
-        delegateLeftoverToSpend = sub(delegateLeftoverToSpend, amount); // reverts if lower allowance
+        delegateLeftoverToSpend_ = sub(delegateLeftoverToSpend_, amount); // reverts if lower allowance
         token.transfer(dst, amount);
     }
 
@@ -134,5 +134,16 @@ contract GebDaoMinimalTreasury is GebAuth {
      */
     function transferERC20(address _token, address dst, uint256 amount) external isAuthorized {
         TokenLike(_token).transfer(dst, amount);
+    }
+
+    /**
+     * @notice Returns current delegateLeftoverToSpend
+     */
+    function delegateLeftoverToSpend() external view returns (uint256) {
+        uint256 epochFinish = add(epochStart, epochLength);
+        if (now > epochFinish)
+            return delegateAllowance;
+        else
+            return delegateLeftoverToSpend_;
     }
 }
